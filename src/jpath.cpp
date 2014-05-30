@@ -40,7 +40,12 @@ struct json_path_grammar :
   json_path_grammar() :
     json_path_grammar::base_type(path)
   {
-    string_value = '"' >> *(boost::spirit::qi::char_ - '"') >> '"';
+
+    quoted_char  = (boost::spirit::qi::char_('\\') >> '"') [boost::spirit::_val+='"']
+                 | (boost::spirit::qi::char_ - '"') [boost::spirit::_val+=boost::spirit::qi::_1]
+                 ;
+
+    string_value = '"' >> *quoted_char >> '"';
 
     integer_value = boost::spirit::qi::int_;
 
@@ -74,7 +79,7 @@ struct json_path_grammar :
 
 private:
   boost::spirit::qi::rule<Iterator, std::string()>
-    string_value;
+    string_value, quoted_char;
 
   boost::spirit::qi::rule<Iterator, int()>
     integer_value;

@@ -42,6 +42,12 @@ class TestJPath(unittest.TestCase):
         self.assertEqual(len(obj[0].cond[0]), 1)
         self.assertEqual(obj[0].cond[0][0], 'value')
 
+    def test_escape_quoted_string(self):
+        obj = jpath.parse(r'"test\"quoted\"string"')
+        self.assertEqual(len(obj), 1)
+        self.assertEqual(obj[0].path_index, 'test"quoted"string')
+        self.assertEqual(repr(obj[0]), r'"test\"quoted\"string"')
+
 def main():
     unittest.main()
 
