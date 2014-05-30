@@ -3,7 +3,9 @@ python:
   - "2.7"
 
 before_script:
-  - sudo apt-get install libboost-python-dev
+  - sudo add-apt-repository --yes ppa:boost-latest/ppa
+  - sudo apt-get update
+  - sudo apt-get install libboost1.54-all-dev
   - python setup.py -q install
 
 script: python tests/main.py
