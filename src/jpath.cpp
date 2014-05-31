@@ -14,6 +14,22 @@ namespace client
     return true;
   }
 
+  // struct cond_node
+  cond_node::cond_node(node_type type) :
+    type(type)
+  {}
+  // struct cond_variable_node
+  cond_variable_node::cond_variable_node(const cond_expr &value) :
+    cond_node(VARIABLE),
+    value(value)
+  {}
+  // struct cond_operator_node
+  cond_operator_node::cond_operator_node(cond_operator op, const cond_node::node &left, const cond_node::node &right) :
+    cond_node(OPERATOR),
+    left_node(left), right_node(right),
+    node_operator(op)
+  {}
+
   // struct json_path_node
   bool json_path_node::operator ==(const json_path_node &rhs) const
   {
@@ -30,7 +46,7 @@ namespace client
 BOOST_FUSION_ADAPT_STRUCT(
   client::json_path_node,
   (client::path_index, index)
-  (boost::optional<client::cond_expr>, cond)
+  (boost::optional<client::cond_node::node>, cond)
 )
 
 template <typename Iterator>
@@ -63,11 +79,41 @@ struct json_path_grammar :
                | string_value
                ;
 
-    cond_rhs = '=' >> cond_value;
+    cond_rhs = *boost::spirit::qi::space
+               >> '='
+               >> *boost::spirit::qi::space
+               >> cond_value;
 
     cond_path = node % '/';
 
-    expr = cond_path >> -cond_rhs;
+    expr_pair = cond_path >> -cond_rhs;
+
+    expr_node = *boost::spirit::qi::space
+                >> '('
+                >> *boost::spirit::qi::space
+                >> expr [boost::spirit::_val=boost::spirit::qi::_1]
+                >> *boost::spirit::qi::space
+                >> ')'
+                >> *boost::spirit::qi::space
+              | expr_pair [boost::spirit::_val=boost::phoenix::bind(&client::cond_variable_node::create, boost::spirit::qi::_1)]
+              ;
+
+    expr = expr_node [boost::spirit::_val=boost::spirit::qi::_1]
+           >> *(
+               (
+                *boost::spirit::qi::space
+                >> "and"
+                >> *boost::spirit::qi::space
+                >> expr_node [boost::spirit::_val=boost::phoenix::bind(&client::cond_operator_node::and_node, boost::spirit::_val, boost::spirit::qi::_1)]
+               )
+             | (
+                *boost::spirit::qi::space
+                >> "or"
+                >> *boost::spirit::qi::space
+                >> expr_node [boost::spirit::_val=boost::phoenix::bind(&client::cond_operator_node::or_node, boost::spirit::_val, boost::spirit::qi::_1)]
+               )
+           )
+         ;
 
     cond = '[' >> expr >> ']';
 
@@ -100,7 +146,10 @@ private:
     cond_path;
 
   boost::spirit::qi::rule<Iterator, client::cond_expr()>
-    cond, expr;
+    expr_pair;
+
+  boost::spirit::qi::rule<Iterator, client::cond_node::node()>
+    cond, expr, expr_node;
 
   boost::spirit::qi::rule<Iterator, client::json_path_node()>
     path_node;
